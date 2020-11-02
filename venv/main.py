@@ -100,10 +100,6 @@ while True:
         if cv2.waitKey(1) & 0XFF == ord('q'):
             break
         prev_time = time_s
-        # pause = True
-        # while pause:
-        #     if cv2.waitKey(1) & 0XFF == ord('c'):
-        #         break
     else:
         break
 
