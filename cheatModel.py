@@ -4,6 +4,13 @@ import numpy as np
 # import dlib
 import time
 
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+
+
+
 def shape_to_np(shape, dtype="int"):
     # initialize the list of (x, y)-coordinates
     coords = np.zeros((68, 2), dtype=dtype)
@@ -28,6 +35,11 @@ def face_to_bb(rect):
 
 
 def run():
+    high = []
+    high_t = []
+    low = []
+    low_t = []
+
     start = time.time()
     # detector = dlib.get_frontal_face_detector()
     # predictor = dlib.shape_predictor("/home/hang/PycharmProjects/MaskDetector/venv/models"
@@ -105,6 +117,17 @@ def run():
                         predict_result, label, accuracy = learn_inf.predict(face_img)
                         label = label.data.numpy()
                         accuracy = (accuracy.data[label]).numpy() * 100
+                        f = cap.get(cv2.CAP_PROP_POS_MSEC)
+                        print("F:", f, " ", predict_result, " ", accuracy)
+
+                        if predict_result == "high_risk":
+                            high.append(accuracy)
+                            high_t.append(f/1000)
+
+                        else:
+                            low.append(accuracy)
+                            low_t.append(f/1000)
+
 
                         risk_counter[predict_result] = risk_counter[predict_result] + 1
 
@@ -132,10 +155,6 @@ def run():
                         #         highCount = 0
 
 
-                        f = cap.get(cv2.CAP_PROP_POS_MSEC)
-                        print("F:", f, " ", predict_result, " ", accuracy)
-
-
 
                     cv2.imshow('Video', cv2.resize(img, (round(img.shape[1] / 2), round(img.shape[0] / 2))))
 
@@ -147,6 +166,14 @@ def run():
         else:
             break
 
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=low_t, y=low, mode='markers', name='low risk'))
+    fig.add_trace(go.Scatter(x=high_t, y=high, mode='markers', name='high risk', marker_size=10, marker_line_width=2))
+    fig.show()
+
+
+
+
     cap.release()
     cv2.destroyAllWindows()
     end = time.time()
@@ -155,6 +182,8 @@ def run():
     print("Total time taken to process: {0} second".format(round(end - start, 2)))
     print("Processed total: {0} frames".format(processed_frames))
     print("Average fps:", processed_frames / 20)
+
+    return high, high_t, low, low_t
 
 if __name__ == "__main__":
     run()

@@ -17,7 +17,7 @@ whT = 320
 confidenceThreshHold = 0.5
 nmsThreshold = 0.3
 
-def findObjects(outputs,img):
+def findObjects(outputs,img, f):
     hT,wT,cT = img.shape
     boundingBox = []
     classIds = []
@@ -60,7 +60,8 @@ def run():
             outputNames = [layerNames[i[0]-1] for i in darkNet.getUnconnectedOutLayers()]
 
             outputs = darkNet.forward(outputNames)
-            findObjects(outputs,img)
+            f = cap.get(cv2.CAP_PROP_POS_MSEC)
+            findObjects(outputs,img, f)
 
             cv2.imshow('YOLOV3',cv2.resize(img,(round(img.shape[1]/2),round(img.shape[0]/2))))
             if cv2.waitKey(1) & 0XFF == ord('q'):

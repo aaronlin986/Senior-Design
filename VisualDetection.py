@@ -4,10 +4,34 @@ import cv2
 from fastai.vision.all import load_learner
 import numpy as np
 import time
+import moviepy.editor as mp
+import math
+
 import multiprocessing
+
 # @ToBeRefactor------------------------some constant
+# Result of the image classifier model
+high = []
+high_t = []
+low = []
+low_t = []
+
+# Result of the yolo model
+book = []
+book_t = []
+laptop = []
+laptop_t = []
+cell = []
+cell_t = []
+person = []
+person_t = []
+person_count = []
+person_count_t = []
+
+
 learn_inf = load_learner('/home/ese440/PycharmProjects/ESE440/models/risk_v3.pkl', cpu=True)
-cap = cv2.VideoCapture("/home/ese440/PycharmProjects/ESE440/resources/testvideo.mp4")
+# video_path = "/home/ese440/PycharmProjects/ESE440/resources/test-video-voice.mp4"
+
 
 # font
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -61,7 +85,7 @@ def face_to_bb(rect):
     return (x, y, w, h)
 
 
-def findObjects(outputs, img):
+def findObjects(outputs, img, f):
     hT, wT, cT = img.shape
     boundingBox = []
     classIds = []
@@ -72,7 +96,6 @@ def findObjects(outputs, img):
             scores = detection[5:]
             classId = np.argmax(scores)
             confidence = scores[classId]
-            # print(confidence)
             if confidence > confidenceThreshHold:
                 w = int(detection[2] * wT)
                 h = int(detection[3] * hT)
@@ -84,31 +107,64 @@ def findObjects(outputs, img):
 
     indices = cv2.dnn.NMSBoxes(boundingBox, confs, confidenceThreshHold, nmsThreshold)
 
+    personCount = 0
+    # book, laptop, cellphone, and person
     for i in indices:
         i = i[0]
         box = boundingBox[i]
         x, y, w, h = box[0], box[1], box[2], box[3]
         cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
+        personCount = personCount + 1 if classNames[classIds[i]].upper() == 'PERSON' else personCount
+
+        if classNames[classIds[i]].upper() == 'PERSON':
+            person.append(int(confs[i] * 100))
+            person_t.append(f)
+        elif classNames[classIds[i]].upper() == 'BOOK':
+            book.append(int(confs[i] * 100))
+            book_t.append(f)
+        elif classNames[classIds[i]].upper() == 'LAPTOP':
+            laptop.append(int(confs[i] * 100))
+            laptop_t.append(f)
+        elif classNames[classIds[i]].upper() == 'CELL':
+            cell.append(int(confs[i] * 100))
+            cell.append(f)
+
         cv2.putText(img, f'{classNames[classIds[i]].upper()} {int(confs[i] * 100)}%', (x, y - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
 
+    person_count.append(personCount)
+    person_count_t.append(f)
 
-def yoloObjectDetection(img):
+
+def yoloObjectDetection(img, f):
     yoloBlog = cv2.dnn.blobFromImage(img, 1 / 255, (whT, whT), [0, 0, 0], 1, crop=False)
     darkNet.setInput(yoloBlog)
     layerNames = darkNet.getLayerNames()
     outputNames = [layerNames[i[0] - 1] for i in darkNet.getUnconnectedOutLayers()]
 
     outputs = darkNet.forward(outputNames)
-    findObjects(outputs, img)
+    findObjects(outputs, img, f)
     return
 
 
-def imageClassify(img, h, w):
+# use to extract audio file from the video input
+# this audio file is then feed to Google Cloud Speech to Text API
+def extractAudio(videoFile):
+    my_clip = mp.VideoFileClip(videoFile)
+    my_clip.audio.write_audiofile(r"my_result.mp3")
+
+
+def imageClassify(img, h, w, f):
     blob = cv2.dnn.blobFromImage(cv2.resize(img, (300, 300)), 1.0,
                                  (300, 300), (104.0, 177.0, 123.0))
     net.setInput(blob)
     detections = net.forward()
+
+    imageWidth = img.shape[1]
+    imageHeight = img.shape[0]
+    paddingX = math.floor(imageWidth * 0.01)
+    paddingY = math.floor(imageHeight * 0.01)
+
     for i in range(0, detections.shape[2]):
         confidence = detections[0, 0, i, 2]
 
@@ -117,54 +173,57 @@ def imageClassify(img, h, w):
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (x1, y1, x2, y2) = box.astype("int")
 
-            face_img = img[y1 - 50:y2 + 50, x1 - 50:x2 + 50]
+            # add paddings to sides
+            x1 = x1 if x1 - paddingX < 0 else x1 - paddingX
+            x2 = x2 if x2 + paddingX > imageWidth else x2 + paddingX
+            y1 = y1 if y1 - paddingY < 0 else y1 - paddingY
+            y2 = y2 if y2 + paddingY > imageHeight else y2 + paddingY
+            face_img = img[y1:y2, x1:x2]
 
-            # cv2.imshow('face',face_img)   --- use to show face portion
             predict_result, label, accuracy = learn_inf.predict(face_img)
             label = label.data.numpy()
             accuracy = (accuracy.data[label]).numpy() * 100
+
+            if predict_result == "high_risk":
+                high.append(accuracy)
+                high_t.append(f)
+            else:
+                low.append(accuracy)
+                low_t.append(f)
 
             risk_counter[predict_result] = risk_counter[predict_result] + 1
 
             message = predict_result + " " + str(round(accuracy, 2)) + "%"
             # drawing a rectangle and coloring the rectangle based on prediction result
-            cv2.rectangle(img, (x1 - 50, y1 - 50), (x2 + 50, y2 + 50), risk_color[predict_result], 2)
-            # cv2.rectangle(img, (x1,y1), (x2, y2), risk_color[predict_result], 2)
-            cv2.putText(img, message, (x1, y1 - 50), font, fontScale,
+            cv2.rectangle(img, (x1, y1), (x2, y2), risk_color[predict_result], 2)
+
+            cv2.putText(img, message, (x1, y1), font, fontScale,
                         risk_color[predict_result], thickness, cv2.LINE_AA)
 
-            f = cap.get(cv2.CAP_PROP_POS_MSEC)
             print("F:", f, " ", predict_result, " ", accuracy)
 
 
-def run():
+
+def run(path):
+    #video_path = path #"/home/ese440/PycharmProjects/ESE440/resources/test-video-voice.mp4"
+    cap = cv2.VideoCapture(path)#video_path)
+    extractAudio(path)#video_path)
     start = time.time()
     prev_time = -1
     processed_frames = 0
     while True:
-        status, img = cap.retrieve(cap.grab())
+        status, img = cap.retrieve(cap.grab()) # time that the frame was captured
+        f = cap.get(cv2.CAP_PROP_POS_MSEC)
         (h, w) = img.shape[:2]
         if status:
 
             # adjust the denominator to skip frames, higher denominator number =>>>  more frame skipping
-            time_s = cap.get(cv2.CAP_PROP_POS_MSEC) / 200
-            # time_s = cap.get(cv2.CAP_PROP_POS_MSEC)
+            time_s = f / 200
             if int(time_s) > int(prev_time):
                 processed_frames += 1
 
-                # multiprocessing version
-
-                # p1 = multiprocessing.Process(imageClassify(img, h, w))
-                # p2 = multiprocessing.Process(yoloObjectDetection(img))
-                # p1.start()
-                # p2.start()
-                # p1.join()
-                # p2.join()
-
-                # regular
-
-                imageClassify(img,h,w)
-                yoloObjectDetection(img)
+                imageClassify(img, h, w, f/1000)
+                yoloObjectDetection(img, f/1000)
 
                 cv2.imshow('Video', cv2.resize(img, (round(img.shape[1] / 2), round(img.shape[0] / 2))))
 
@@ -184,6 +243,7 @@ def run():
     print("Processed total: {0} frames".format(processed_frames))
     print("Average fps:", processed_frames / 10)
 
+    return high, high_t, low, low_t, book, book_t, laptop, laptop_t, cell, cell_t, person, person_t,person_count, person_count_t;
 
 if __name__ == "__main__":
     run()
