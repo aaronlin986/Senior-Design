@@ -7,6 +7,10 @@ import time
 import moviepy.editor as mp
 import math
 
+#gaze tracking
+from gaze_tracking import GazeTracking
+gaze = GazeTracking()
+
 import multiprocessing
 
 # @ToBeRefactor------------------------some constant
@@ -69,20 +73,6 @@ with open(classesFile, 'rt') as f:
 
 # @ToBeRefactor------------------------some constant
 
-def shape_to_np(shape, dtype="int"):
-    coords = np.zeros((68, 2), dtype=dtype)
-
-    for i in range(0, 68):
-        coords[i] = (shape.part(i).x, shape.part(i).y)
-    return coords
-
-
-def face_to_bb(rect):
-    x = rect.left()
-    y = rect.top()
-    w = rect.right() - x
-    h = rect.bottom() - y
-    return (x, y, w, h)
 
 
 def findObjects(outputs, img, f):
@@ -202,10 +192,39 @@ def imageClassify(img, h, w, f):
 
             print("F:", f, " ", predict_result, " ", accuracy)
 
+def gazeAnalyst(img,f):
+    gaze.refresh(img)
 
+    img = gaze.annotated_frame()
+    text = "Nothing"
+
+    if gaze.is_blinking():
+        text = "Blinking"
+    elif gaze.is_right():
+        text = "Looking right"
+    elif gaze.is_left():
+        text = "Looking left"
+    elif gaze.is_center():
+        text = "Looking center"
+    elif gaze.is_center():
+        text = "Looking center"
+    elif gaze.is_up():
+        text = "Looking up"
+    elif gaze.is_down():
+        text = "Looking down"
+    elif gaze.is_center():
+        text = "Looking center"
+
+    cv2.putText(img, text, (300, 300), cv2.FONT_HERSHEY_DUPLEX, 1.6, (147, 58, 31), 2)
+
+    left_pupil = gaze.pupil_left_coords()
+    right_pupil = gaze.pupil_right_coords()
+    cv2.putText(img, "Left pupil:  " + str(left_pupil), (90, 130), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
+    cv2.putText(img, "Right pupil: " + str(right_pupil), (90, 165), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
+    cv2.imshow('demo',img)
 
 def run(path):
-    #video_path = path #"/home/ese440/PycharmProjects/ESE440/resources/test-video-voice.mp4"
+    # path ="/home/ese440/PycharmProjects/ESE440/resources/demo_3-28.mp4"
     cap = cv2.VideoCapture(path)#video_path)
     extractAudio(path)#video_path)
     start = time.time()
@@ -213,17 +232,18 @@ def run(path):
     processed_frames = 0
     while True:
         status, img = cap.retrieve(cap.grab()) # time that the frame was captured
-        f = cap.get(cv2.CAP_PROP_POS_MSEC)
+        fr = cap.get(cv2.CAP_PROP_POS_MSEC)
         (h, w) = img.shape[:2]
         if status:
 
             # adjust the denominator to skip frames, higher denominator number =>>>  more frame skipping
-            time_s = f / 200
+            time_s = fr / 250
             if int(time_s) > int(prev_time):
                 processed_frames += 1
 
-                imageClassify(img, h, w, f/1000)
-                yoloObjectDetection(img, f/1000)
+                gazeAnalyst(img, fr/1000)
+                imageClassify(img, h, w, fr/1000)
+                yoloObjectDetection(img, fr/1000)
 
                 cv2.imshow('Video', cv2.resize(img, (round(img.shape[1] / 2), round(img.shape[0] / 2))))
 
@@ -246,4 +266,4 @@ def run(path):
     return high, high_t, low, low_t, book, book_t, laptop, laptop_t, cell, cell_t, person, person_t,person_count, person_count_t;
 
 if __name__ == "__main__":
-    run()
+    run("/home/ese440/PycharmProjects/ESE440/resources/test-video-no-voice.mp4")

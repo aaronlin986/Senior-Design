@@ -2,6 +2,8 @@
 # https://cloud.google.com/speech-to-text/docs/quickstart-client-libraries?authuser=2#client-libraries-install-python
 from google.cloud import storage
 
+# To be modified
+# only the audio segments that are voiced will be upload to google cloud storage for further analyst
 
 def upload_blob(bucket_name, source_file_name, destination_blob_name):
     """Uploads a file to the bucket."""
@@ -20,6 +22,7 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
             source_file_name, destination_blob_name
         )
     )
+
 
 def transcribe_gcs(gcs_uri):
     """Asynchronously transcribes the audio file specified by the gcs_uri."""
@@ -58,10 +61,15 @@ def transcribe_gcs(gcs_uri):
                 f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}"
             )
 
-gci_uri = "gs://ese440_audios/my_result.mp3"
-transcribe_gcs(gci_uri)
+#gci_uri = "gs://ese440_audios/my_result.mp3"
+#transcribe_gcs(gci_uri)
 
-def run:
+def run():
+    # upload location mp3 file to cloud
+    # process the mp3 file in the cloud
+    # return the text
+    import os
+    return 'text from video'
 
 
 if __name__ == "__main__":
