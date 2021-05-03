@@ -3,7 +3,7 @@ import os, glob
 
 # This file writes images from video to the folder
 
-path = "/home/ese440/PycharmProjects/ESE440/resources/demo_3-28.mp4"
+path = "/home/ese440/PycharmProjects/ESE440/resources/test-video-no-voice.mp4"
 output_folder_path = './image_samples/'
 
 
@@ -13,7 +13,7 @@ def delete_files(folder_path):
         os.remove(f)
 
 
-def video_to_frames(video, path_output_dir):
+def video_to_frames(video, path_output_dir, sample_gap_seconds=1):
     # extract frames from a video and save to directory as 'x.png' where
     # x is the frame index
     prev_time = -1
@@ -23,7 +23,7 @@ def video_to_frames(video, path_output_dir):
         success, image = vidcap.read()
         f = vidcap.get(cv2.CAP_PROP_POS_MSEC)
         if success:
-            time_s = f / 1
+            time_s = f / (sample_gap_seconds * 1000)
             if int(time_s) > int(prev_time):
                 processed_frames += 1
 
@@ -38,6 +38,3 @@ def video_to_frames(video, path_output_dir):
     print('total frames',processed_frames)
     cv2.destroyAllWindows()
     vidcap.release()
-
-
-video_to_frames(path, output_folder_path)

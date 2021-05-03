@@ -1,4 +1,3 @@
-# Combining code from cheatModel.py and yoloModel.py
 
 import cv2
 from fastai.vision.all import load_learner
@@ -6,10 +5,8 @@ import numpy as np
 import time
 import moviepy.editor as mp
 import math
-
-#gaze tracking
-from gaze_tracking import GazeTracking
-gaze = GazeTracking()
+import os
+import re
 
 import multiprocessing
 
@@ -31,7 +28,8 @@ person = []
 person_t = []
 person_count = []
 person_count_t = []
-
+objects = []
+objects_t = []
 
 learn_inf = load_learner('/home/ese440/PycharmProjects/ESE440/models/risk_v3.pkl', cpu=True)
 # video_path = "/home/ese440/PycharmProjects/ESE440/resources/test-video-voice.mp4"
@@ -75,7 +73,7 @@ with open(classesFile, 'rt') as f:
 
 
 
-def findObjects(outputs, img, f):
+def findObjects(outputs, img, frame_time):
     hT, wT, cT = img.shape
     boundingBox = []
     classIds = []
@@ -103,25 +101,18 @@ def findObjects(outputs, img, f):
         i = i[0]
         box = boundingBox[i]
         x, y, w, h = box[0], box[1], box[2], box[3]
-        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
+        # cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
         personCount = personCount + 1 if classNames[classIds[i]].upper() == 'PERSON' else personCount
 
-        if classNames[classIds[i]].upper() == 'PERSON':
-            person.append(int(confs[i] * 100))
-            person_t.append(f)
-        elif classNames[classIds[i]].upper() == 'BOOK':
-            book.append(int(confs[i] * 100))
-            book_t.append(f)
-        elif classNames[classIds[i]].upper() == 'LAPTOP':
-            laptop.append(int(confs[i] * 100))
-            laptop_t.append(f)
-        elif classNames[classIds[i]].upper() == 'CELL':
-            cell.append(int(confs[i] * 100))
-            cell.append(f)
-
-        cv2.putText(img, f'{classNames[classIds[i]].upper()} {int(confs[i] * 100)}%', (x, y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
-
+        object_class = classNames[classIds[i]].upper()
+        # combine all objects into single class
+        if object_class == 'CELL PHONE' or object_class == 'LAPTOP' or object_class == 'BOOK':
+            # add text to existing object detection description
+            if frame_time in objects_t:
+                objects[len(objects) - 1] = objects[len(objects) - 1] + object_class
+            else:
+                objects.append(object_class)
+                objects_t.append(frame_time)
     person_count.append(personCount)
     person_count_t.append(f)
 
@@ -135,13 +126,6 @@ def yoloObjectDetection(img, f):
     outputs = darkNet.forward(outputNames)
     findObjects(outputs, img, f)
     return
-
-
-# use to extract audio file from the video input
-# this audio file is then feed to Google Cloud Speech to Text API
-def extractAudio(videoFile):
-    my_clip = mp.VideoFileClip(videoFile)
-    my_clip.audio.write_audiofile(r"my_result.mp3")
 
 
 def imageClassify(img, h, w, f):
@@ -192,41 +176,10 @@ def imageClassify(img, h, w, f):
 
             print("F:", f, " ", predict_result, " ", accuracy)
 
-def gazeAnalyst(img,f):
-    gaze.refresh(img)
-
-    img = gaze.annotated_frame()
-    text = "Nothing"
-
-    if gaze.is_blinking():
-        text = "Blinking"
-    elif gaze.is_right():
-        text = "Looking right"
-    elif gaze.is_left():
-        text = "Looking left"
-    elif gaze.is_center():
-        text = "Looking center"
-    elif gaze.is_center():
-        text = "Looking center"
-    elif gaze.is_up():
-        text = "Looking up"
-    elif gaze.is_down():
-        text = "Looking down"
-    elif gaze.is_center():
-        text = "Looking center"
-
-    cv2.putText(img, text, (300, 300), cv2.FONT_HERSHEY_DUPLEX, 1.6, (147, 58, 31), 2)
-
-    left_pupil = gaze.pupil_left_coords()
-    right_pupil = gaze.pupil_right_coords()
-    cv2.putText(img, "Left pupil:  " + str(left_pupil), (90, 130), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
-    cv2.putText(img, "Right pupil: " + str(right_pupil), (90, 165), cv2.FONT_HERSHEY_DUPLEX, 0.9, (147, 58, 31), 1)
-    cv2.imshow('demo',img)
 
 def run(path):
-    # path ="/home/ese440/PycharmProjects/ESE440/resources/demo_3-28.mp4"
-    cap = cv2.VideoCapture(path)#video_path)
-    extractAudio(path)#video_path)
+    # path ="/home/ese440/PycharmProjects/ESE440/resources/test-video_70s.mp4"
+    cap = cv2.VideoCapture(path)
     start = time.time()
     prev_time = -1
     processed_frames = 0
@@ -237,12 +190,10 @@ def run(path):
         if status:
 
             # adjust the denominator to skip frames, higher denominator number =>>>  more frame skipping
-            time_s = fr / 250
+            time_s = fr / 1000
             if int(time_s) > int(prev_time):
                 processed_frames += 1
-
-                gazeAnalyst(img, fr/1000)
-                imageClassify(img, h, w, fr/1000)
+                # imageClassify(img, h, w, fr/1000)
                 yoloObjectDetection(img, fr/1000)
 
                 cv2.imshow('Video', cv2.resize(img, (round(img.shape[1] / 2), round(img.shape[0] / 2))))
@@ -257,13 +208,25 @@ def run(path):
     cap.release()
     cv2.destroyAllWindows()
     end = time.time()
-    print("Low risk frames:", risk_counter["low_risk"])
-    print("High risk frames:", risk_counter["high_risk"])
-    print("Total time taken to process: {0} second".format(round(end - start, 2)))
-    print("Processed total: {0} frames".format(processed_frames))
-    print("Average fps:", processed_frames / 10)
 
     return high, high_t, low, low_t, book, book_t, laptop, laptop_t, cell, cell_t, person, person_t,person_count, person_count_t;
 
+
+def run_test(image_folder_path):
+    sorted_file_list = sorted(os.listdir(image_folder_path), key=lambda x: int(x.split(".")[0]))
+    start = time.time()
+    print("Start:", start)
+    # read image from folder
+    for input_filename in sorted_file_list:
+        #  with open(image_folder_path + '/' + input_filename, 'rb') as image:
+        image = cv2.imread(image_folder_path + input_filename)
+        yoloObjectDetection(image, int(re.search('(.+)\\.png', input_filename).groups()[0]) / 1000)
+    end = time.time()
+    print("End:", end)
+    print(end-start)
+    return objects, objects_t, person_count, person_count_t
+
+
+image_folder = "/home/ese440/PycharmProjects/ESE440/image_samples/"
 if __name__ == "__main__":
-    run("/home/ese440/PycharmProjects/ESE440/resources/test-video-no-voice.mp4")
+    run_test(image_folder)

@@ -1,10 +1,18 @@
 # Reference
 # https://cloud.google.com/speech-to-text/docs/quickstart-client-libraries?authuser=2#client-libraries-install-python
 from google.cloud import storage
-
+from google.cloud import speech_v1p1beta1 as speech
+import os
 # To be modified
 # only the audio segments that are voiced will be upload to google cloud storage for further analyst
 
+
+def configure():
+    os.environ[
+        "GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ese440/PycharmProjects/ESE440/resources/ese440-ee15808ee7b1.json"
+
+
+# turn into mp3 before upload
 def upload_blob(bucket_name, source_file_name, destination_blob_name):
     """Uploads a file to the bucket."""
     bucket_name = "your-bucket-name"
@@ -23,13 +31,9 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
         )
     )
 
-
 def transcribe_gcs(gcs_uri):
     """Asynchronously transcribes the audio file specified by the gcs_uri."""
-    from google.cloud import speech_v1p1beta1 as speech
-
     client = speech.SpeechClient()
-
     audio = speech.RecognitionAudio(uri=gcs_uri)
 
     # if it is a MP3 file, the encoding and the sample_rate have to be specified
@@ -43,8 +47,11 @@ def transcribe_gcs(gcs_uri):
     operation = client.long_running_recognize(config=config, audio=audio)
 
     print("Waiting for operation to complete...")
-    result = operation.result(timeout=90)
+    result = operation.result(timeout=1000)
 
+    words = []
+    start_time_arr = []
+    end_time_arr = []
     for result in result.results:
         alternative = result.alternatives[0]
         print("Transcript: {}".format(alternative.transcript))
@@ -57,20 +64,23 @@ def transcribe_gcs(gcs_uri):
             start_time = word_info.start_time
             end_time = word_info.end_time
 
+            words.append(word)
+            start_time_arr.append(start_time.total_seconds())
+            end_time_arr.append(end_time.total_seconds())
+
             print(
                 f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}"
             )
+    return words,start_time_arr,end_time_arr
 
-#gci_uri = "gs://ese440_audios/my_result.mp3"
-#transcribe_gcs(gci_uri)
 
 def run():
     # upload location mp3 file to cloud
     # process the mp3 file in the cloud
     # return the text
-    import os
-    return 'text from video'
-
+    configure()
+    gci_uri = "gs://ese440_audios/"
+    return transcribe_gcs(gci_uri)
 
 if __name__ == "__main__":
     run()

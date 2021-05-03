@@ -1,11 +1,9 @@
 from google.cloud import vision
 from PIL import Image, ImageDraw
-import time
-import cv2
 import os
-import base64
 
 
+# this file is for reference only
 def configure():
     os.environ[
         "GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ese440/PycharmProjects/ESE440/resources/ese440-ee15808ee7b1.json"

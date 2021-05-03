@@ -1,21 +1,22 @@
-from google.cloud import vision,storage
+from google.cloud import vision, storage
 
 from file_uploader import list_blobs
+
+
 # loads the google cloud credentials
-
-
 def configure():
     import os
     os.environ[
         "GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ese440/PycharmProjects/ESE440/resources/ese440-ee15808ee7b1.json"
 
+# annotate the image files in the google cloud storage
 
-def sample_async_batch_annotate_images(
-    output_uri="gs://ese440_batch_output/",
-):
-    """Perform async batch image annotation."""
-    image_folder_path="gs://ese440_test_images/"  # path to the image folder
-    bucket_name = "ese440_test_images"
+
+def async_batch_annotate_images(bucket_name, image_folder_path):
+    print(bucket_name)
+    print(image_folder_path)
+    output_uri = "gs://ese440_batch_output/"
+
     client = vision.ImageAnnotatorClient()
 
     storage_client = storage.Client()
@@ -23,10 +24,10 @@ def sample_async_batch_annotate_images(
 
     requests = []
     features = [
-        {"type_": vision.Feature.Type.FACE_DETECTION}, # detect only face
+        {"type_": vision.Feature.Type.FACE_DETECTION},  # detect only face
     ]
     for blob in blobs:
-        image = {"source": {"image_uri": image_folder_path+blob.name}}
+        image = {"source": {"image_uri": image_folder_path + blob.name}}
         requests.append({'image': image, "features": features})
 
     gcs_destination = {"uri": output_uri}
@@ -43,6 +44,3 @@ def sample_async_batch_annotate_images(
     gcs_output_uri = response.output_config.gcs_destination.uri
     print("Output written to GCS with prefix: {}".format(gcs_output_uri))
 
-
-configure()
-sample_async_batch_annotate_images()
