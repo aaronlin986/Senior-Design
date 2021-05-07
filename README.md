@@ -6,7 +6,7 @@
 - Google Vision API
 
 ---
-## To run this program:
+## To Run This Program:
 1. Create a virtual environment
 2. Clone this repository
 3. Run **pip install -r requirements.txt** to install all dependencies
@@ -16,12 +16,14 @@
 7. Replace all Google Cloud related urls with desired urls
 
 ---
-## Folder explanations
+## Folder Explanations
 - **annotated_json** is used to store the json files that contain the results from Google Vision API
 - **image_samples** is used to store image frames from the video
 - **models** is used to store the yolov3 models and fastai model(no longer necessary in current implementation)
 - **resources** is used to store Google Cloud Credential, student id photo and recorded video file
 - **yolov3-config** is used to store yolov3 configuration files
 ---
-
+## Program Folder and File Structure
+![Program folder and file structure](https://github.com/HangCcZ/Senior-Design/blob/main/Capture.PNG)
+---
 ### If you have any questions, please reach me via my email in my GitHub profile page.
