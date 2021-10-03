@@ -1,9 +1,8 @@
-# Automated Proctoring for Online Exams
-# ESE440/441 Senior-Design by Aaron Lin and Hang Chen
+# Automated Proctoring for Online Exams by Aaron Lin and Hang Chen
 ---
 
 ## Description
-This program was created for a year long project with the potential to ease the process professors' take when grading online exams. With the pandemic, everyone had to resort to taking exams online, and with the realization of its convenience, it may continue to be a popular way of taking exams in the future. Upon running the program, the GUI will be displayed in the browser, where inputs, such as video recordings, can be uploaded for the program to process. On completion of processing, the results from the program will be shown in the form of graphs and tables. The users can make use of the generated data with their own judgement.
+This program was created for a year long project in the Senior Design course (ESE 440/441) of Stony Brook University. The idea behind the program was to ease the process professors' take when grading online exams. Particularly, the program attemps to detect cheating by facial and object detections. With the pandemic, everyone has to resort to taking exams online, and with the realization of its convenience, it may continue to be a popular way of taking exams in the future. This means that there will be an increased number of online exams that need to be reviewed for suspicious activities. Upon running the program, the GUI will be displayed in the browser, where inputs, such as video recordings, can be uploaded for the program to process. On completion of processing, the results from the program will be shown in the form of graphs and tables. The users can make use of the generated data with their own judgement.
 
 ## Note: Google Cloud Platform is required to run this program. The following APIs are utilized in the program, and will need to be enabled :
 - Google Cloud Speech API
